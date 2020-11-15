@@ -81,12 +81,20 @@ public:
 
 enum LOG_THREAD_TYPE { LOG_FILE_THREAD };
 
+enum LOG_STORE_TYPE { LOG_STORE_FILE };
 
-SafeQueue<std::string> g_queue;
+struct LogQueueContainer
+{
+    std::string msg;
+    std::string filename;
+    LOG_STORE_TYPE storeType;
+};
+
+SafeQueue<LogQueueContainer> g_queue;
 
 namespace log
 {
-    void printf(const char* pszLog, ...);
+    void printf(char* filename, const char* pszLog, ...);
     void Create();
     void Release();
 }
@@ -126,10 +134,11 @@ namespace log
             {
                 Sleep(1);
 
-                std::string temp;
+                LogQueueContainer temp;
                 if(g_queue.pop(temp))
                 {
-                    log::Internal::WriteFile("mytest.txt", temp);
+                    if(temp.storeType == LOG_STORE_FILE)
+                        log::Internal::WriteFile(temp.filename.c_str(), temp.msg);
                 }
                 else
                 {
@@ -142,7 +151,7 @@ namespace log
         }
     }
 
-    void printf(const char* pszLog, ...)
+    void printf(char* filename, const char* pszLog, ...)
     {    
         va_list argList;
         char cbuffer[MAX_LOG_LEN];
@@ -154,7 +163,11 @@ namespace log
         std::string now = log::Internal::GetTimeStamp();
         now.append(cbuffer);
 
-        g_queue.push(now.c_str());
+        LogQueueContainer temp;
+        temp.filename = filename;
+        temp.msg = now;
+        temp.storeType = LOG_STORE_FILE;
+        g_queue.push(temp);
     }
 
     void Create()
@@ -172,17 +185,15 @@ namespace log
             CloseHandle(hThread[n]);
 
         CloseHandle( hStopEvent );
-    }
-
-    
+    }   
 }
 
 void Test1()
 {
     log::Create();
 
-    for(int n = 0; n < 100; n++)
-        log::printf("log test %d", n);
+    for(int n = 0; n < 1000; n++)
+        log::printf("test.txt", "log test %d", n);
     
     log::Release();
     printf("Test quit !!!!!!\n");
