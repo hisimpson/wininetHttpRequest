@@ -1,4 +1,3 @@
-//소스 링크 : https://otland.net/threads/c-asynchronous-wininet-client.260001/
 #include <windows.h>
 #include <winInet.h>
 #include <stdio.h>
