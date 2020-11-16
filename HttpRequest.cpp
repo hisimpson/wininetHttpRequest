@@ -57,77 +57,6 @@ bool HttpRequest::RequestPost(TCHAR* data)
     return true;
 }
 
-#if  0
-bool HttpRequest::Open()
-{
-    /*
-    if(!OpenInternet())
-        Return_Error("FAILED: error in OpenInternet\n");
-
-    if(!OpenConnect())
-        Return_Error("FAILED: error in OpenConnect\n");
-
-    if(!OpenRequest())
-        Return_Error("FAILED: error in OpenRequest\n");
-
-    if(!SetInternetOption())
-        Return_Error("FAILED: error in SetInternetOption\n");
-
-    if(!SendPostHeader())
-        Return_Error("FAILED: error in SendPostHeader\n");
-
-    if(!SendPostData())
-        Return_Error("FAILED: error in SendPostData\n");
-
-    if(!InternetReadFile())
-        Return_Error("FAILED: error in InternetReadFile\n");
-    */
-
-    if(!OpenInternet())
-        Return_Error("FAILED: error in OpenInternet\n");
-
-    if(!OpenConnect())
-        Return_Error("FAILED: error in OpenConnect\n");
-
-    if(!OpenRequest())
-        Return_Error("FAILED: error in OpenRequest\n");
-
-    if(!SetInternetOption())
-        Return_Error("FAILED: error in SetInternetOption\n");
-
-    SetData(_T("user_name=홍test&user_id=hong&user_address=korea"));
-    if(!SendPostHeader())
-        Return_Error("FAILED: error in SendPostHeader\n");
-
-    if(!SendPostData())
-        Return_Error("FAILED: error in SendPostData\n");
-
-    //DDD
-    BOOL retOpenRequestRet = InternetCloseHandle(m_hOpenRequest);
-    if(retOpenRequestRet)
-        m_hOpenRequest = 0;
-    BOOL retConnect = InternetCloseHandle(m_hSession);
-    if(retConnect)
-        m_hSession = 0;
-
-    if(!OpenConnect())
-        Return_Error("FAILED: error in OpenConnect\n");
-
-    if(!OpenRequest())
-        Return_Error("FAILED: error in OpenRequest\n");
-
-    if(!SetInternetOption())
-        Return_Error("FAILED: error in SetInternetOption\n");
-
-    SetData(_T("user_name=홍길동&user_id=hong&user_address=korea"));
-    if(!SendPostHeader())
-        Return_Error("FAILED: error in SendPostHeader\n");
-
-    if(!SendPostData())
-        Return_Error("FAILED: error in SendPostData\n");
-    return true;
-}
-#endif
 bool HttpRequest::Close()
 {
     BOOL bRet = TRUE;
@@ -210,10 +139,7 @@ bool HttpRequest::OpenRequest()
 
     HINTERNET hOpenRequest = HttpOpenRequest( m_hSession, _T("POST"), _T("/login.jsp"), HTTP_VERSION, _T(""), 
                                               NULL,
-                                             INTERNET_FLAG_RELOAD,  // 이것 됨
-                                             //INTERNET_FLAG_RELOAD | INTERNET_FLAG_DONT_CACHE | INTERNET_FLAG_KEEP_CONNECTION |INTERNET_FLAG_PRAGMA_NOCACHE | INTERNET_FLAG_NO_CACHE_WRITE, // 이것 됨
-                                             //INTERNET_FLAG_KEEP_CONNECTION | INTERNET_FLAG_PRAGMA_NOCACHE | INTERNET_FLAG_NO_CACHE_WRITE, //이것 HttpSendRequest됨
-                                             //INTERNET_FLAG_SECURE|INTERNET_FLAG_IGNORE_CERT_CN_INVALID|INTERNET_FLAG_IGNORE_CERT_DATE_INVALID, //이것안됨
+                                             dwFlags,
                                              0);
 
     if(hOpenRequest == NULL)
@@ -249,12 +175,6 @@ void HttpRequest::SetData(TCHAR* szData)
 bool HttpRequest::SendPostHeader()
 {
     std::string& strData = m_strData;
-    /*
-    std::string& strData = m_strData;
-    TCHAR szPostData[2048] = {0};
-    lstrcpy(szPostData, _T("user_name=둘하나&user_id=hong&user_address=korea"));
-    strData = CW2A(CT2W(szPostData), CP_UTF8);
-    */
     int postDataLength = (int)strData.length();
 
     // post header
@@ -305,115 +225,35 @@ bool HttpRequest::InternetReadFile()
 
 //----------------------------------------------------------------------------------------------------------------------------------
 
-
-
-
-bool PostHttp()
-{
-    HINTERNET hInternet = InternetOpen(_T("HTTPTEST"), INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
-    if(hInternet == NULL)
-        return false;;
-
-    HINTERNET hInternetConnect = InternetConnect(hInternet, _T("localhost"), 8881, _T(""), _T(""), INTERNET_SERVICE_HTTP, 0, 0);
-    if(hInternetConnect == NULL)
-    {
-        InternetCloseHandle(hInternetConnect);
-        return false;
-    }
-
-    HINTERNET hOpenRequest = HttpOpenRequest( hInternetConnect, _T("POST"), _T("/login.jsp"), HTTP_VERSION, _T(""), 
-                                              NULL,
-                                             INTERNET_FLAG_RELOAD,  // 이것 됨
-                                             //INTERNET_FLAG_RELOAD | INTERNET_FLAG_DONT_CACHE | INTERNET_FLAG_KEEP_CONNECTION |INTERNET_FLAG_PRAGMA_NOCACHE | INTERNET_FLAG_NO_CACHE_WRITE, // 이것 됨
-                                             //INTERNET_FLAG_KEEP_CONNECTION | INTERNET_FLAG_PRAGMA_NOCACHE | INTERNET_FLAG_NO_CACHE_WRITE, //이것 HttpSendRequest됨
-                                             //INTERNET_FLAG_SECURE|INTERNET_FLAG_IGNORE_CERT_CN_INVALID|INTERNET_FLAG_IGNORE_CERT_DATE_INVALID, //이것안됨
-                                             0);
-
-    //이부분에 internalSetoption을 준다, Flag를 바꿔 가면서 실행 해본다. 
-#if  1
-    DWORD dwFlags = 0 ;
-    dwFlags = SECURITY_FLAG_IGNORE_UNKNOWN_CA   |
-           SECURITY_FLAG_IGNORE_REVOCATION       |
-           SECURITY_FLAG_IGNORE_REDIRECT_TO_HTTP   |
-           SECURITY_FLAG_IGNORE_REDIRECT_TO_HTTPS |
-           SECURITY_FLAG_IGNORE_CERT_DATE_INVALID   |
-           SECURITY_FLAG_IGNORE_CERT_CN_INVALID;
- 
-    InternetSetOption(hOpenRequest, INTERNET_OPTION_SECURITY_FLAGS, &dwFlags, sizeof(dwFlags));
-#endif
-
-    TCHAR szPostData[2048] = {0};
-    lstrcpy(szPostData, _T("user_name=둘하나&user_id=hong&user_address=korea"));
-    std::string strPostData = CW2A(CT2W(szPostData), CP_UTF8);
-    int postDataLength = (int)strPostData.length();
-
-    // post header
-    TCHAR szLen[MAX_PATH] = {0};
-    TCHAR szHeader[2048] = {0};
-
-    wsprintf(szLen, _T("%d"), postDataLength);
-    lstrcat(szHeader, _T("Accept: text/*\r\n"));
-    lstrcat(szHeader, _T("User-Agent: Mozilla/4.0 (compatible; MSIE 5.0;* Windows NT)\r\n"));
-    lstrcat(szHeader, _T("Content-type: application/x-www-form-urlencoded\r\n"));
-    lstrcat(szHeader, _T("Content-length: "));
-    lstrcat(szHeader, szLen);
-    lstrcat(szHeader, _T("\r\n\n"));
-
-
-    BOOL bHeaderRequest = HttpAddRequestHeaders(hOpenRequest, szHeader, -1L, HTTP_ADDREQ_FLAG_ADD);
-    if(!bHeaderRequest)
-    {
-        DWORD errId = GetLastError();  //error code 87
-		printf("Failed: Error in HttpAddRequestHeaders %d \n", errId);
-    }
-    else
-    {
-        BOOL bSendRequest = HttpSendRequest(hOpenRequest,
-                                            NULL,
-                                            0,
-                                            (LPVOID)strPostData.c_str(),
-                                            (DWORD)postDataLength);
-
-        if(bSendRequest)
-        {
-            char szBuf[2048] = {0};
-            DWORD dwSize = 0;
-            BOOL bRead = InternetReadFile(  hOpenRequest,
-                                           szBuf,
-                                           sizeof(szBuf),
-                                           &dwSize);
-
-            //MessageBox(NULL, CW2T(CA2W(szBuf, CP_UTF8)), _T("post test"), MB_OK);
-            printf(CW2A(CA2W(szBuf, CP_UTF8)));
-        }
-        else
-	    {
-             DWORD errId = GetLastError();  //error code 12029, INTERNET_FLAG_SECURE 옵션이 들어가면 발생
-			 printf("Failed: Error in HttpSendRequest %d \n", errId);
-	    }
-    }
-    BOOL bRet = InternetCloseHandle(hOpenRequest);
-    bRet = InternetCloseHandle(hInternetConnect);
-    bRet = InternetCloseHandle(hInternet);
-
-    return true;
-}
-
 bool TestPostHttp()
 {
-#if 1
     HttpRequest httpPost;
     httpPost.Open( _T("localhost"), 8881);
     httpPost.RequestPost(_T("user_name=철수&user_id=hong&user_address=korea"));
     httpPost.RequestPost(_T("user_name=영희&user_id=hong&user_address=korea"));
-    httpPost.RequestPost(_T("user_name=똘이&user_id=hong&user_address=korea"));
+    httpPost.RequestPost(_T("user_name=홍길동&user_id=hong&user_address=korea"));
     httpPost.Close();
-#else
-    PostHttp();
-#endif
+
     return true;
 }
 
 
-//InternetReadFile 함수로 파일 다운로드
-//https://silvermask.tistory.com/165
+/*
+참조
+
+InternetReadFile 함수로 파일 다운로드
+https://silvermask.tistory.com/165
+
+WinINet HttpSendRequest을 이용하여 HTTP/HTTPS로 POST하는방법  *** '&' 중간에 구분 기호로 넣는다.
+https://lunaticlina.tistory.com/25
+
+C++ http 클라이언트 요청하기 WinHttp
+https://jacking75.github.io/HttpClient_WinHttp/
+
+HttpSendRequest 12029 에러 해결
+https://stackoverflow.com/questions/30319288/using-internetconnect-with-ip-address-fails-error-12029
+
+ASCII, UNICODE, UTF8 상호 변환, 한글깨짐
+https://m.blog.naver.com/chodadoo/220444225049
+*/
+

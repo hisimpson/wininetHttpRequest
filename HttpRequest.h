@@ -15,6 +15,7 @@ public:
     {
         return (m_hSession != 0L);
     }
+    bool InternetReadFile();
     
 private:
     bool OpenInternet();
@@ -23,7 +24,6 @@ private:
     bool SetInternetOption();
     bool SendPostHeader();
     bool SendPostData();
-    bool InternetReadFile();
     void SetData(TCHAR* szData);
 
 private:
