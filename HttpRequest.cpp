@@ -1,3 +1,4 @@
+//¼Ò½º ¸µÅ© : https://otland.net/threads/c-asynchronous-wininet-client.260001/
 #include <windows.h>
 #include <winInet.h>
 #include <stdio.h>
@@ -13,9 +14,8 @@
 
 #define Return_Error(msg)  {   printf(msg); return false; }
 
-HttpRequest::HttpRequest() : m_hSession(0), m_httpSession(0), m_hHttpFile (0), m_port(0)
+HttpRequest::HttpRequest() : m_hInternetSession(0), m_httpSession(0), m_hHttpFile (0)
 {
-
 }
 
 HttpRequest::~HttpRequest()
@@ -67,20 +67,20 @@ bool HttpRequest::Close()
     if(bRet)
         m_httpSession = 0;
 
-    if(m_hSession)
-        bRet = InternetCloseHandle(m_hSession);
+    if(m_hInternetSession)
+        bRet = InternetCloseHandle(m_hInternetSession);
     if(bRet)
-        m_hSession = 0;
+        m_hInternetSession = 0;
     return (bRet != FALSE);
 }
 
 bool HttpRequest::OpenInternet()
 {
-    if(m_hSession)
+    if(m_hInternetSession)
     {
-        BOOL bRet = InternetCloseHandle(m_hSession);
+        BOOL bRet = InternetCloseHandle(m_hInternetSession);
         if(bRet)
-            m_hSession = 0;
+            m_hInternetSession = 0;
         else
             return false;
     }
@@ -89,7 +89,7 @@ bool HttpRequest::OpenInternet()
     if(hInternet == NULL)
         return false;;
 
-    m_hSession = hInternet;
+    m_hInternetSession = hInternet;
     return true;
 }
 
@@ -104,10 +104,9 @@ bool HttpRequest::OpenConnect()
             return false;
     }
     
-    HINTERNET hInternetConnect = InternetConnect(m_hSession, m_url.c_str(), m_port, _T(""), _T(""), INTERNET_SERVICE_HTTP, 0, 0);
+    HINTERNET hInternetConnect = InternetConnect(m_hInternetSession, m_url.c_str(), m_port, _T(""), _T(""), INTERNET_SERVICE_HTTP, 0, 0);
     if(hInternetConnect == NULL)
     {
-        InternetCloseHandle(hInternetConnect);
         return false;
     }
 
@@ -207,6 +206,7 @@ bool TestPostHttp()
     HttpRequest httpPost;
     httpPost.Open( _T("localhost"), 8881);
     httpPost.RequestPost(_T("user_name=Ã¶¼ö&user_id=hong&user_address=korea"));
+	//httpPost.InternetReadFile();
     httpPost.RequestPost(_T("user_name=¿µÈñ&user_id=hong&user_address=korea"));
     httpPost.RequestPost(_T("user_name=È«±æµ¿&user_id=hong&user_address=korea"));
     httpPost.Close();

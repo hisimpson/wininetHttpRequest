@@ -22,11 +22,12 @@ private:
     bool OpenConnect();
     bool OpenRequest();
     bool SetInternetOption();
+    bool SendPostHeader();
     bool SendPostData();
     void SetData(TCHAR* szData);
 
 private:
-    HINTERNET m_hSession;
+    HINTERNET m_hInternetSession;
     HINTERNET m_httpSession;
     HINTERNET m_hHttpFile ;
     std::string m_strData;

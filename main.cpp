@@ -188,6 +188,9 @@ namespace log
     }   
 }
 
+bool TestPostHttp();
+bool TestAsyncHttp();
+
 void Test1()
 {
     log::Create();
@@ -199,13 +202,12 @@ void Test1()
     printf("Test quit !!!!!!\n");
 }
 
-bool TestPostHttp();
-
 int _tmain(int argc, _TCHAR* argv[])
 {
     //Test1();
-    //log::printf("mytest.txt", "aaaaa %d \n", 100);
 
-	TestPostHttp();
+    //TestPostHttp();
+	TestAsyncHttp();
+    //log::printf("mytest.txt", "aaaaa %d \n", 100);
     return 0;
 }
