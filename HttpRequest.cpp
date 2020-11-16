@@ -6,8 +6,271 @@
 #include <atlbase.h>
 #include <atlconv.h>
 
+#include "HttpRequest.h"
+
 #pragma comment (lib, "Wininet.lib")
 #pragma comment (lib, "urlmon.lib")
+
+#define Return_Error(msg)  {   printf(msg); return false; }
+
+HttpRequest::HttpRequest() : m_hAgent(0), m_hSession(0), m_hOpenRequest(0)
+{
+
+}
+
+HttpRequest::~HttpRequest()
+{
+}
+
+bool HttpRequest::Open()
+{
+    /*
+    if(!OpenInternet())
+        Return_Error("FAILED: error in OpenInternet\n");
+
+    if(!OpenConnect())
+        Return_Error("FAILED: error in OpenConnect\n");
+
+    if(!OpenRequest())
+        Return_Error("FAILED: error in OpenRequest\n");
+
+    if(!SetInternetOption())
+        Return_Error("FAILED: error in SetInternetOption\n");
+
+    if(!SendPostHeader())
+        Return_Error("FAILED: error in SendPostHeader\n");
+
+    if(!SendPostData())
+        Return_Error("FAILED: error in SendPostData\n");
+
+    if(!InternetReadFile())
+        Return_Error("FAILED: error in InternetReadFile\n");
+    */
+
+    if(!OpenInternet())
+        Return_Error("FAILED: error in OpenSession\n");
+
+    if(!OpenConnect())
+        Return_Error("FAILED: error in OpenConnect\n");
+
+    if(!OpenRequest())
+        Return_Error("FAILED: error in OpenRequest\n");
+
+    if(!SetInternetOption())
+        Return_Error("FAILED: error in SetInternetOption\n");
+
+    SetData(_T("user_name=»´test&user_id=hong&user_address=korea"));
+    if(!SendPostHeader())
+        Return_Error("FAILED: error in SendPostHeader\n");
+
+    if(!SendPostData())
+        Return_Error("FAILED: error in SendPostData\n");
+
+    //DDD
+    BOOL retOpenRequestRet = InternetCloseHandle(m_hOpenRequest);
+    if(retOpenRequestRet)
+        m_hOpenRequest = 0;
+    BOOL retConnect = InternetCloseHandle(m_hSession);
+    if(retConnect)
+        m_hSession = 0;
+
+    if(!OpenConnect())
+        Return_Error("FAILED: error in OpenConnect\n");
+
+    if(!OpenRequest())
+        Return_Error("FAILED: error in OpenRequest\n");
+
+    if(!SetInternetOption())
+        Return_Error("FAILED: error in SetInternetOption\n");
+
+    SetData(_T("user_name=»´±Êµø&user_id=hong&user_address=korea"));
+    if(!SendPostHeader())
+        Return_Error("FAILED: error in SendPostHeader\n");
+
+    if(!SendPostData())
+        Return_Error("FAILED: error in SendPostData\n");
+    return true;
+}
+
+bool HttpRequest::Close()
+{
+    BOOL bRet = TRUE;
+    if(m_hOpenRequest)
+        bRet = InternetCloseHandle(m_hOpenRequest);
+    if(bRet)
+        m_hOpenRequest = 0;
+
+    if(m_hSession)
+        bRet = InternetCloseHandle(m_hSession);
+    if(bRet)
+        m_hSession = 0;
+
+    if(m_hAgent)
+        bRet = InternetCloseHandle(m_hAgent);
+    if(bRet)
+        m_hAgent = 0;
+    return (bRet != FALSE);
+}
+
+bool HttpRequest::OpenInternet()
+{
+    if(m_hAgent)
+    {
+        BOOL bRet = InternetCloseHandle(m_hAgent);
+        if(bRet)
+            m_hAgent = 0;
+        else
+            return false;
+    }
+
+    HINTERNET hInternet = InternetOpen(_T("HTTPPOST"), INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
+    if(hInternet == NULL)
+        return false;;
+
+    m_hAgent = hInternet;
+    return true;
+}
+
+bool HttpRequest::OpenConnect()
+{
+    if(m_hSession)
+    {
+        BOOL bRet = InternetCloseHandle(m_hSession);
+        if(bRet)
+            m_hSession = 0;
+        else
+            return false;
+    }
+    
+    HINTERNET hInternetConnect = InternetConnect(m_hAgent, _T("localhost"), 8881, _T(""), _T(""), INTERNET_SERVICE_HTTP, 0, 0);
+    if(hInternetConnect == NULL)
+    {
+        InternetCloseHandle(hInternetConnect);
+        return false;
+    }
+
+    m_hSession = hInternetConnect;
+    return true;
+}
+
+bool HttpRequest::OpenRequest()
+{
+    if(m_hOpenRequest)
+    {
+        BOOL bRet = InternetCloseHandle(m_hOpenRequest);
+        if(bRet)
+            m_hOpenRequest = 0;
+        else
+            return false;
+    }
+
+    //localhostø°º≠ ≈◊Ω∫∆ÆΩ√ HttpSendRequest «‘ºˆ Ω««‡¿Ã ¿ﬂµ 
+    DWORD dwFlags = INTERNET_FLAG_RELOAD;
+    //DWORD dwFlags = INTERNET_LAG_RELOAD | INTERNET_FLAG_DONT_CACHE | INTERNET_FLAG_KEEP_CONNECTION |INTERNET_FLAG_PRAGMA_NOCACHE | INTERNET_FLAG_NO_CACHE_WRITE;
+    //DWORD dwFlags = INTERNET_FLAG_KEEP_CONNECTION | INTERNET_FLAG_PRAGMA_NOCACHE | INTERNET_FLAG_NO_CACHE_WRITE;
+
+    //localhostø°º≠ ≈◊Ω∫∆ÆΩ√ HttpSendRequest «‘ºˆ Ω««‡¿Ã æ»µ . INTERNET_FLAG_SECURE «√∑°±◊øÕ ø¨∞¸¿÷¥Ÿ.
+    //DWORD dwFlags = INTERNET_FLAG_SECURE|INTERNET_FLAG_IGNORE_CERT_CN_INVALID|INTERNET_FLAG_IGNORE_CERT_DATE_INVALID;
+
+    HINTERNET hOpenRequest = HttpOpenRequest( m_hSession, _T("POST"), _T("/login.jsp"), HTTP_VERSION, _T(""), 
+                                              NULL,
+                                             INTERNET_FLAG_RELOAD,  // ¿Ã∞Õ µ 
+                                             //INTERNET_FLAG_RELOAD | INTERNET_FLAG_DONT_CACHE | INTERNET_FLAG_KEEP_CONNECTION |INTERNET_FLAG_PRAGMA_NOCACHE | INTERNET_FLAG_NO_CACHE_WRITE, // ¿Ã∞Õ µ 
+                                             //INTERNET_FLAG_KEEP_CONNECTION | INTERNET_FLAG_PRAGMA_NOCACHE | INTERNET_FLAG_NO_CACHE_WRITE, //¿Ã∞Õ HttpSendRequestµ 
+                                             //INTERNET_FLAG_SECURE|INTERNET_FLAG_IGNORE_CERT_CN_INVALID|INTERNET_FLAG_IGNORE_CERT_DATE_INVALID, //¿Ã∞Õæ»µ 
+                                             0);
+
+    if(hOpenRequest == NULL)
+        return false;;
+
+    m_hOpenRequest = hOpenRequest;
+    return true;
+}
+
+bool HttpRequest::SetInternetOption()
+{
+    //¿Ã∫Œ∫–ø° internalSetoption¿ª ¡ÿ¥Ÿ, Flag∏¶ πŸ≤„ ∞°∏Èº≠ Ω««‡ «ÿ∫ª¥Ÿ. 
+    DWORD dwFlags = 0 ;
+    dwFlags = SECURITY_FLAG_IGNORE_UNKNOWN_CA   |
+           SECURITY_FLAG_IGNORE_REVOCATION       |
+           SECURITY_FLAG_IGNORE_REDIRECT_TO_HTTP   |
+           SECURITY_FLAG_IGNORE_REDIRECT_TO_HTTPS |
+           SECURITY_FLAG_IGNORE_CERT_DATE_INVALID   |
+           SECURITY_FLAG_IGNORE_CERT_CN_INVALID;
+ 
+    BOOL bRet = InternetSetOption(m_hOpenRequest, INTERNET_OPTION_SECURITY_FLAGS, &dwFlags, sizeof(dwFlags));
+    return (bRet != FALSE);
+}
+
+void HttpRequest::SetData(TCHAR* szData)
+{
+    std::string& strData = m_strData;
+    TCHAR szPostData[2048] = {0};
+    lstrcpy(szPostData, szData);
+    strData = CW2A(CT2W(szPostData), CP_UTF8);
+}
+
+bool HttpRequest::SendPostHeader()
+{
+    std::string& strData = m_strData;
+    /*
+    std::string& strData = m_strData;
+    TCHAR szPostData[2048] = {0};
+    lstrcpy(szPostData, _T("user_name=µ—«œ≥™&user_id=hong&user_address=korea"));
+    strData = CW2A(CT2W(szPostData), CP_UTF8);
+    */
+    int postDataLength = (int)strData.length();
+
+    // post header
+    TCHAR szLen[MAX_PATH] = {0};
+    TCHAR szHeader[2048] = {0};
+
+    wsprintf(szLen, _T("%d"), postDataLength);
+    lstrcat(szHeader, _T("Accept: text/*\r\n"));
+    lstrcat(szHeader, _T("User-Agent: Mozilla/4.0 (compatible; MSIE 5.0;* Windows NT)\r\n"));
+    lstrcat(szHeader, _T("Content-type: application/x-www-form-urlencoded\r\n"));
+    lstrcat(szHeader, _T("Content-length: "));
+    lstrcat(szHeader, szLen);
+    lstrcat(szHeader, _T("\r\n\n"));
+
+    BOOL bRet = HttpAddRequestHeaders(m_hOpenRequest, szHeader, -1L, HTTP_ADDREQ_FLAG_ADD);
+    return (bRet != FALSE);
+}
+
+bool HttpRequest::SendPostData()
+{
+    std::string& strData = m_strData;
+
+    BOOL bRet = HttpSendRequest(m_hOpenRequest,
+                                        NULL,
+                                        0,
+                                        (LPVOID)strData.c_str(),
+                                        (DWORD)strData.length());
+    return (bRet != FALSE);
+}
+
+
+bool HttpRequest::InternetReadFile()
+{
+    char szBuf[2048] = {0};
+    DWORD dwSize = 0;
+    BOOL bRead = ::InternetReadFile( m_hOpenRequest,
+                                   szBuf,
+                                   sizeof(szBuf),
+                                   &dwSize);
+    if(bRead == FALSE)
+        return false;
+
+    //µπˆ±ÎøÎ √‚∑¬
+    //MessageBox(NULL, CW2T(CA2W(szBuf, CP_UTF8)), _T("post test"), MB_OK);
+    printf(CW2A(CA2W(szBuf, CP_UTF8)));
+    return true;
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------
+
+
+
 
 bool PostHttp()
 {
@@ -24,13 +287,13 @@ bool PostHttp()
 
     HINTERNET hOpenRequest = HttpOpenRequest( hInternetConnect, _T("POST"), _T("/login.jsp"), HTTP_VERSION, _T(""), 
                                               NULL,
-                                             INTERNET_FLAG_RELOAD,  // Ïù¥Í≤É Îê®
-                                             //INTERNET_FLAG_RELOAD | INTERNET_FLAG_DONT_CACHE | INTERNET_FLAG_KEEP_CONNECTION |INTERNET_FLAG_PRAGMA_NOCACHE | INTERNET_FLAG_NO_CACHE_WRITE, // Ïù¥Í≤É Îê®
-                                             //INTERNET_FLAG_KEEP_CONNECTION | INTERNET_FLAG_PRAGMA_NOCACHE | INTERNET_FLAG_NO_CACHE_WRITE, //Ïù¥Í≤É HttpSendRequestÎê®
-                                             //INTERNET_FLAG_SECURE|INTERNET_FLAG_IGNORE_CERT_CN_INVALID|INTERNET_FLAG_IGNORE_CERT_DATE_INVALID, //Ïù¥Í≤ÉÏïàÎê®
+                                             INTERNET_FLAG_RELOAD,  // ¿Ã∞Õ µ 
+                                             //INTERNET_FLAG_RELOAD | INTERNET_FLAG_DONT_CACHE | INTERNET_FLAG_KEEP_CONNECTION |INTERNET_FLAG_PRAGMA_NOCACHE | INTERNET_FLAG_NO_CACHE_WRITE, // ¿Ã∞Õ µ 
+                                             //INTERNET_FLAG_KEEP_CONNECTION | INTERNET_FLAG_PRAGMA_NOCACHE | INTERNET_FLAG_NO_CACHE_WRITE, //¿Ã∞Õ HttpSendRequestµ 
+                                             //INTERNET_FLAG_SECURE|INTERNET_FLAG_IGNORE_CERT_CN_INVALID|INTERNET_FLAG_IGNORE_CERT_DATE_INVALID, //¿Ã∞Õæ»µ 
                                              0);
 
-    //Ïù¥Î∂ÄÎ∂ÑÏóê internalSetoptionÏùÑ Ï§ÄÎã§, FlagÎ•º Î∞îÍøî Í∞ÄÎ©¥ÏÑú Ïã§Ìñâ Ìï¥Î≥∏Îã§. 
+    //¿Ã∫Œ∫–ø° internalSetoption¿ª ¡ÿ¥Ÿ, Flag∏¶ πŸ≤„ ∞°∏Èº≠ Ω««‡ «ÿ∫ª¥Ÿ. 
 #if  1
     DWORD dwFlags = 0 ;
     dwFlags = SECURITY_FLAG_IGNORE_UNKNOWN_CA   |
@@ -44,21 +307,21 @@ bool PostHttp()
 #endif
 
     TCHAR szPostData[2048] = {0};
-    lstrcpy(szPostData, _T("user_name=ÎëòÌïòÎÇò&user_id=hong&user_address=korea"));
+    lstrcpy(szPostData, _T("user_name=µ—«œ≥™&user_id=hong&user_address=korea"));
     std::string strPostData = CW2A(CT2W(szPostData), CP_UTF8);
     int postDataLength = (int)strPostData.length();
 
     // post header
-    char szLen[MAX_PATH] = {0};
-    char szHeader[2048] = {0};
+    TCHAR szLen[MAX_PATH] = {0};
+    TCHAR szHeader[2048] = {0};
 
     wsprintf(szLen, _T("%d"), postDataLength);
-    strcat(szHeader, _T("Accept: text/*\r\n"));
-    strcat(szHeader, _T("User-Agent: Mozilla/4.0 (compatible; MSIE 5.0;* Windows NT)\r\n"));
-    strcat(szHeader, _T("Content-type: application/x-www-form-urlencoded\r\n"));
-    strcat(szHeader, _T("Content-length: "));
-    strcat(szHeader, szLen);
-    strcat(szHeader, _T("\r\n\n"));
+    lstrcat(szHeader, _T("Accept: text/*\r\n"));
+    lstrcat(szHeader, _T("User-Agent: Mozilla/4.0 (compatible; MSIE 5.0;* Windows NT)\r\n"));
+    lstrcat(szHeader, _T("Content-type: application/x-www-form-urlencoded\r\n"));
+    lstrcat(szHeader, _T("Content-length: "));
+    lstrcat(szHeader, szLen);
+    lstrcat(szHeader, _T("\r\n\n"));
 
 
     BOOL bHeaderRequest = HttpAddRequestHeaders(hOpenRequest, szHeader, -1L, HTTP_ADDREQ_FLAG_ADD);
@@ -89,7 +352,7 @@ bool PostHttp()
         }
         else
 	    {
-             DWORD errId = GetLastError();  //error code 12029, INTERNET_FLAG_SECURE ÏòµÏÖòÏù¥ Îì§Ïñ¥Í∞ÄÎ©¥ Î∞úÏÉù
+             DWORD errId = GetLastError();  //error code 12029, INTERNET_FLAG_SECURE ø…º«¿Ã µÈæÓ∞°∏È πﬂª˝
 			 printf("Failed: Error in HttpSendRequest %d \n", errId);
 	    }
     }
@@ -100,7 +363,18 @@ bool PostHttp()
     return true;
 }
 
-void TestHttp()
+bool TestPostHttp()
 {
+#if 1
+    HttpRequest httpPost;
+    httpPost.Open();
+    httpPost.Close();
+#else
     PostHttp();
+#endif
+    return true;
 }
+
+
+//InternetReadFile «‘ºˆ∑Œ ∆ƒ¿œ ¥ŸøÓ∑ŒµÂ
+//https://silvermask.tistory.com/165

@@ -199,11 +199,13 @@ void Test1()
     printf("Test quit !!!!!!\n");
 }
 
-void TestHttp();
+bool TestPostHttp();
 
 int _tmain(int argc, _TCHAR* argv[])
 {
     //Test1();
     //log::printf("mytest.txt", "aaaaa %d \n", 100);
+
+	TestPostHttp();
     return 0;
 }

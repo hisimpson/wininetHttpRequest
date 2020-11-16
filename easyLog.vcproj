@@ -179,6 +179,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\HttpRequest.h"
+				>
+			</File>
+			<File
 				RelativePath=".\main.cpp"
 				>
 			</File>
