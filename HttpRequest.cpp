@@ -22,6 +22,42 @@ HttpRequest::~HttpRequest()
 {
 }
 
+bool HttpRequest::Open(TCHAR* url, int port)
+{
+    m_url = url;
+    m_port = port;
+
+    if(!OpenInternet())
+        Return_Error("FAILED: error in OpenInternet\n");
+
+    if(!OpenConnect())
+        Return_Error("FAILED: error in OpenConnect\n");
+
+    return true;
+}
+
+bool HttpRequest::RequestPost(TCHAR* data)
+{
+    if(!IsValidSession())
+        return false;
+    SetData(data);
+
+    if(!OpenRequest())
+        Return_Error("FAILED: error in OpenRequest\n");
+
+    if(!SetInternetOption())
+        Return_Error("FAILED: error in SetInternetOption\n");
+
+    if(!SendPostHeader())
+        Return_Error("FAILED: error in SendPostHeader\n");
+
+    if(!SendPostData())
+        Return_Error("FAILED: error in SendPostData\n");
+
+    return true;
+}
+
+#if  0
 bool HttpRequest::Open()
 {
     /*
@@ -48,7 +84,7 @@ bool HttpRequest::Open()
     */
 
     if(!OpenInternet())
-        Return_Error("FAILED: error in OpenSession\n");
+        Return_Error("FAILED: error in OpenInternet\n");
 
     if(!OpenConnect())
         Return_Error("FAILED: error in OpenConnect\n");
@@ -91,7 +127,7 @@ bool HttpRequest::Open()
         Return_Error("FAILED: error in SendPostData\n");
     return true;
 }
-
+#endif
 bool HttpRequest::Close()
 {
     BOOL bRet = TRUE;
@@ -142,7 +178,7 @@ bool HttpRequest::OpenConnect()
             return false;
     }
     
-    HINTERNET hInternetConnect = InternetConnect(m_hAgent, _T("localhost"), 8881, _T(""), _T(""), INTERNET_SERVICE_HTTP, 0, 0);
+    HINTERNET hInternetConnect = InternetConnect(m_hAgent, m_url.c_str(), m_port, _T(""), _T(""), INTERNET_SERVICE_HTTP, 0, 0);
     if(hInternetConnect == NULL)
     {
         InternetCloseHandle(hInternetConnect);
@@ -367,7 +403,10 @@ bool TestPostHttp()
 {
 #if 1
     HttpRequest httpPost;
-    httpPost.Open();
+    httpPost.Open( _T("localhost"), 8881);
+    httpPost.RequestPost(_T("user_name=Ã¶¼ö&user_id=hong&user_address=korea"));
+    httpPost.RequestPost(_T("user_name=¿µÈñ&user_id=hong&user_address=korea"));
+    httpPost.RequestPost(_T("user_name=¶ÊÀÌ&user_id=hong&user_address=korea"));
     httpPost.Close();
 #else
     PostHttp();
