@@ -13,7 +13,7 @@ public:
     bool RequestPost(TCHAR* data);
     bool IsValidSession()
     {
-        return (m_hSession != 0L);
+        return (m_httpSession != 0L);
     }
     bool InternetReadFile();
     
@@ -27,9 +27,9 @@ private:
     void SetData(TCHAR* szData);
 
 private:
-    HINTERNET m_hAgent;
     HINTERNET m_hSession;
-    HINTERNET m_hOpenRequest;
+    HINTERNET m_httpSession;
+    HINTERNET m_hHttpFile ;
     std::string m_strData;
 
     std::basic_string<TCHAR> m_url;

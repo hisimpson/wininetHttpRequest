@@ -13,7 +13,7 @@
 
 #define Return_Error(msg)  {   printf(msg); return false; }
 
-HttpRequest::HttpRequest() : m_hAgent(0), m_hSession(0), m_hOpenRequest(0)
+HttpRequest::HttpRequest() : m_hSession(0), m_httpSession(0), m_hHttpFile (0)
 {
 
 }
@@ -60,43 +60,24 @@ bool HttpRequest::RequestPost(TCHAR* data)
 bool HttpRequest::Close()
 {
     BOOL bRet = TRUE;
-    if(m_hOpenRequest)
-        bRet = InternetCloseHandle(m_hOpenRequest);
+    if(m_hHttpFile )
+        bRet = InternetCloseHandle(m_hHttpFile );
     if(bRet)
-        m_hOpenRequest = 0;
+        m_hHttpFile  = 0;
+
+    if(m_httpSession)
+        bRet = InternetCloseHandle(m_httpSession);
+    if(bRet)
+        m_httpSession = 0;
 
     if(m_hSession)
         bRet = InternetCloseHandle(m_hSession);
     if(bRet)
         m_hSession = 0;
-
-    if(m_hAgent)
-        bRet = InternetCloseHandle(m_hAgent);
-    if(bRet)
-        m_hAgent = 0;
     return (bRet != FALSE);
 }
 
 bool HttpRequest::OpenInternet()
-{
-    if(m_hAgent)
-    {
-        BOOL bRet = InternetCloseHandle(m_hAgent);
-        if(bRet)
-            m_hAgent = 0;
-        else
-            return false;
-    }
-
-    HINTERNET hInternet = InternetOpen(_T("HTTPPOST"), INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
-    if(hInternet == NULL)
-        return false;;
-
-    m_hAgent = hInternet;
-    return true;
-}
-
-bool HttpRequest::OpenConnect()
 {
     if(m_hSession)
     {
@@ -106,25 +87,44 @@ bool HttpRequest::OpenConnect()
         else
             return false;
     }
+
+    HINTERNET hInternet = InternetOpen(_T("HTTPPOST"), INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
+    if(hInternet == NULL)
+        return false;;
+
+    m_hSession = hInternet;
+    return true;
+}
+
+bool HttpRequest::OpenConnect()
+{
+    if(m_httpSession)
+    {
+        BOOL bRet = InternetCloseHandle(m_httpSession);
+        if(bRet)
+            m_httpSession = 0;
+        else
+            return false;
+    }
     
-    HINTERNET hInternetConnect = InternetConnect(m_hAgent, m_url.c_str(), m_port, _T(""), _T(""), INTERNET_SERVICE_HTTP, 0, 0);
+    HINTERNET hInternetConnect = InternetConnect(m_hSession, m_url.c_str(), m_port, _T(""), _T(""), INTERNET_SERVICE_HTTP, 0, 0);
     if(hInternetConnect == NULL)
     {
         InternetCloseHandle(hInternetConnect);
         return false;
     }
 
-    m_hSession = hInternetConnect;
+    m_httpSession = hInternetConnect;
     return true;
 }
 
 bool HttpRequest::OpenRequest()
 {
-    if(m_hOpenRequest)
+    if(m_hHttpFile )
     {
-        BOOL bRet = InternetCloseHandle(m_hOpenRequest);
+        BOOL bRet = InternetCloseHandle(m_hHttpFile );
         if(bRet)
-            m_hOpenRequest = 0;
+            m_hHttpFile  = 0;
         else
             return false;
     }
@@ -137,7 +137,7 @@ bool HttpRequest::OpenRequest()
     //localhost에서 테스트시 HttpSendRequest 함수 실행이 안됨. INTERNET_FLAG_SECURE 플래그와 연관있다.
     //DWORD dwFlags = INTERNET_FLAG_SECURE|INTERNET_FLAG_IGNORE_CERT_CN_INVALID|INTERNET_FLAG_IGNORE_CERT_DATE_INVALID;
 
-    HINTERNET hOpenRequest = HttpOpenRequest( m_hSession, _T("POST"), _T("/login.jsp"), HTTP_VERSION, _T(""), 
+    HINTERNET hOpenRequest = HttpOpenRequest( m_httpSession, _T("POST"), _T("/login.jsp"), HTTP_VERSION, _T(""), 
                                               NULL,
                                              dwFlags,
                                              0);
@@ -145,7 +145,7 @@ bool HttpRequest::OpenRequest()
     if(hOpenRequest == NULL)
         return false;;
 
-    m_hOpenRequest = hOpenRequest;
+    m_hHttpFile  = hOpenRequest;
     return true;
 }
 
@@ -160,7 +160,7 @@ bool HttpRequest::SetInternetOption()
            SECURITY_FLAG_IGNORE_CERT_DATE_INVALID   |
            SECURITY_FLAG_IGNORE_CERT_CN_INVALID;
  
-    BOOL bRet = InternetSetOption(m_hOpenRequest, INTERNET_OPTION_SECURITY_FLAGS, &dwFlags, sizeof(dwFlags));
+    BOOL bRet = InternetSetOption(m_hHttpFile , INTERNET_OPTION_SECURITY_FLAGS, &dwFlags, sizeof(dwFlags));
     return (bRet != FALSE);
 }
 
@@ -189,7 +189,7 @@ bool HttpRequest::SendPostHeader()
     lstrcat(szHeader, szLen);
     lstrcat(szHeader, _T("\r\n\n"));
 
-    BOOL bRet = HttpAddRequestHeaders(m_hOpenRequest, szHeader, -1L, HTTP_ADDREQ_FLAG_ADD);
+    BOOL bRet = HttpAddRequestHeaders(m_hHttpFile , szHeader, -1L, HTTP_ADDREQ_FLAG_ADD);
     return (bRet != FALSE);
 }
 
@@ -197,7 +197,7 @@ bool HttpRequest::SendPostData()
 {
     std::string& strData = m_strData;
 
-    BOOL bRet = HttpSendRequest(m_hOpenRequest,
+    BOOL bRet = HttpSendRequest(m_hHttpFile ,
                                         NULL,
                                         0,
                                         (LPVOID)strData.c_str(),
@@ -210,7 +210,7 @@ bool HttpRequest::InternetReadFile()
 {
     char szBuf[2048] = {0};
     DWORD dwSize = 0;
-    BOOL bRead = ::InternetReadFile( m_hOpenRequest,
+    BOOL bRead = ::InternetReadFile( m_hHttpFile ,
                                    szBuf,
                                    sizeof(szBuf),
                                    &dwSize);
