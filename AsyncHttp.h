@@ -32,6 +32,9 @@ public:
         return (m_httpSession != 0L);
     }
     bool InternetReadFile();
+	void Quit();
+	void SetError(int errorCode);
+	int GetError() { return m_errorCode; }
     
 private:
     bool OpenInternet();
@@ -49,9 +52,13 @@ private:
     HINTERNET m_hInternetSession, m_httpSession, m_hHttpFile ;
     std::string m_strData;
 
-	InetContext context;
+	InetContext m_context;
     std::basic_string<TCHAR> m_url;
     int m_port;
+
+	HANDLE m_hExitEvent;
+	bool m_quit;
+	int m_errorCode;
 };
 
 

@@ -16,21 +16,35 @@
 #define TIME_OUT (20*1000)
 
 AsyncHttp::AsyncHttp() : m_hInternetSession(NULL), m_httpSession(NULL), m_hHttpFile (NULL), m_port(0)
-, hConnectEvent(NULL), hRequestOpenEvent(NULL), hRequestCompleteEvent(NULL)
+, hConnectEvent(NULL), hRequestOpenEvent(NULL), hRequestCompleteEvent(NULL), m_hExitEvent(0)
+, m_quit(false), m_errorCode(0)
 {
-	context.obj = NULL;
-	context.dwContext = 0;
-	context.error = 0;
+	m_context.obj = NULL;
+	m_context.dwContext = 0;
+	m_context.error = 0;
 }
 
 AsyncHttp::~AsyncHttp()
 {
 }
 
+void AsyncHttp::Quit()
+{
+	m_quit = true;
+	if(m_hExitEvent)
+		SetEvent(m_hExitEvent);
+}
+
+void AsyncHttp::SetError(int errorCode)
+{
+	m_errorCode = errorCode;
+}
+
 bool AsyncHttp::Open(TCHAR* url, int port)
 {
     m_url = url;
     m_port = port;
+	m_hExitEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 
 	if(!this->hConnectEvent)
 	{
@@ -121,8 +135,8 @@ bool AsyncHttp::OpenInternet()
         return false;
     }
 
-    this->context.dwContext = AsyncHttp::CONTEXT_CONNECT;
-    this->context.obj = this;
+    this->m_context.dwContext = AsyncHttp::CONTEXT_CONNECT;
+    this->m_context.obj = this;
 
     return true;
 }
@@ -144,13 +158,19 @@ bool AsyncHttp::OpenConnect()
     }
     
 	m_httpSession = InternetConnect(m_hInternetSession, m_url.c_str(), m_port, _T(""), _T(""), INTERNET_SERVICE_HTTP, 
-		INTERNET_FLAG_KEEP_CONNECTION | INTERNET_FLAG_NO_CACHE_WRITE , reinterpret_cast<DWORD>(&this->context));
+		INTERNET_FLAG_KEEP_CONNECTION | INTERNET_FLAG_NO_CACHE_WRITE , reinterpret_cast<DWORD>(&this->m_context));
     if(m_httpSession == NULL)
     {
         if (GetLastError() == ERROR_IO_PENDING)
-        {
-            if (WaitForSingleObject(this->hConnectEvent, dwTimeout))
+        {  
+		    HANDLE hEvent[2] = {m_hExitEvent, this->hConnectEvent};
+            //if (WaitForSingleObject(this->hConnectEvent, dwTimeout))
+			DWORD dw = WaitForMultipleObjects(2, hEvent, FALSE, dwTimeout);
+			if(dw)
 			{
+				if(dw == WAIT_OBJECT_0)
+					return false;
+
 				printf("InternetConnect error: time out\n");
                 return false;
 			}
@@ -174,8 +194,8 @@ bool AsyncHttp::OpenRequest()
             return false;
     }
 
-	this->context.dwContext = AsyncHttp::CONTEXT_REQUESTHANDLE;
-	this->context.obj = this;
+	this->m_context.dwContext = AsyncHttp::CONTEXT_REQUESTHANDLE;
+	this->m_context.obj = this;
 
     //localhost¿¡¼­ Å×½ºÆ®½Ã HttpSendRequest ÇÔ¼ö ½ÇÇàÀÌ ÀßµÊ
     DWORD dwFlags = INTERNET_FLAG_RELOAD;
@@ -190,15 +210,23 @@ bool AsyncHttp::OpenRequest()
     m_hHttpFile = HttpOpenRequest( m_httpSession, _T("POST"), _T("/login.jsp"), HTTP_VERSION, _T(""), 
                                               NULL,
                                              dwFlags,
-                                             reinterpret_cast<DWORD>(&this->context));
+                                             reinterpret_cast<DWORD>(&this->m_context));
 
     if(m_hHttpFile == NULL)
 	{
         printf("HttpOpenRequest error %d\n", GetLastError());
         if (GetLastError() == ERROR_IO_PENDING)
         {
-            if(WaitForSingleObject(this->hRequestOpenEvent, dwTimeout))
-                return false;
+		    HANDLE hEvent[2] = {m_hExitEvent, this->hRequestOpenEvent};
+            //if(WaitForSingleObject(this->hRequestOpenEvent, dwTimeout))
+			DWORD dw = WaitForMultipleObjects(2, hEvent, FALSE, dwTimeout);
+			if(dw)
+			{
+				if(dw == WAIT_OBJECT_0)
+					return false;
+
+				return false;
+			}
         };
 	}
 
@@ -247,15 +275,25 @@ bool AsyncHttp::SendPostData()
     {
         if(GetLastError() == ERROR_IO_PENDING)
         {
-            if(WaitForSingleObject(this->hRequestCompleteEvent, dwTimeout) == WAIT_TIMEOUT)
-            {
-                return false;
+		    HANDLE hEvent[2] = {m_hExitEvent, this->hRequestCompleteEvent};
+            //if(WaitForSingleObject(this->hRequestCompleteEvent, dwTimeout) == WAIT_TIMEOUT)
+			DWORD dw = WaitForMultipleObjects(2, hEvent, FALSE, dwTimeout);
+			if(dw)
+			{
+				if(dw == WAIT_OBJECT_0)
+					return false;
+
+				if(dw == WAIT_TIMEOUT)
+					return false;
             }
         }
     }
 
-	if(context.error)
+	if(m_context.error)
+	{
+		printf("SendPostData error code: %d\r\n", m_context.error);
 		return false;
+	}
 	return true;
 }
 
@@ -269,6 +307,8 @@ bool AsyncHttp::InternetReadFile()
     {
         szBuf[iLength] = 0;               
         szResponse += szBuf;
+		if(m_quit)
+			break;
     }
 
     //µð¹ö±ë¿ë Ãâ·Â
@@ -290,15 +330,20 @@ unsigned long AsyncHttp::ReadData(PBYTE lpBuffer, DWORD dwSize)
     inetBuffers.lpvBuffer = lpBuffer;
     inetBuffers.dwBufferLength = dwSize - 1;
 
-    this->context.dwContext = AsyncHttp::CONTEXT_REQUESTHANDLE;
-    this->context.obj = this;
+    this->m_context.dwContext = AsyncHttp::CONTEXT_REQUESTHANDLE;
+    this->m_context.obj = this;
 
-    if (!InternetReadFileEx(this->m_hHttpFile, &inetBuffers, 0, reinterpret_cast<DWORD>(&this->context)))
+    if (!InternetReadFileEx(this->m_hHttpFile, &inetBuffers, 0, reinterpret_cast<DWORD>(&this->m_context)))
     {
         if (GetLastError() == ERROR_IO_PENDING)
         {
-            if (WaitForSingleObject(this->hRequestCompleteEvent, dwTimeout) == WAIT_TIMEOUT)
-            {
+		    HANDLE hEvent[2] = {m_hExitEvent, this->hRequestCompleteEvent};
+            //if (WaitForSingleObject(this->hRequestCompleteEvent, dwTimeout) == WAIT_TIMEOUT)
+			DWORD dw = WaitForMultipleObjects(2, hEvent, FALSE, dwTimeout);
+			if(dw)
+			{
+				if(dw == WAIT_OBJECT_0)
+					return 0;
                 return 0;
             }
         }
@@ -357,26 +402,52 @@ void WINAPI AsyncHttp::CallbackFunction(
 #pragma warning( pop )
 
 
-//----------------------------------------------------------------------------------------------------------------------------------
+#define HTTP_ERR_REQUESTPOST   100
+#define HTTP_ERR_READFILE      200
+#define HTTP_ERR_THREAD_EXIT   ((DWORD)-1)
 
-bool TestAsyncHttp()
+//----------------------------------------------------------------------------------------------------------------------------------
+DWORD WINAPI RequestPost( LPVOID lpParam)
 {
     AsyncHttp httpPost;
     httpPost.Open( _T("localhost"), 8881);
-    httpPost.RequestPost(_T("user_name=Ã¶¼ö&user_id=hong&user_address=korea"));
-	//httpPost.InternetReadFile();
-    //httpPost.RequestPost(_T("user_name=¿µÈñ&user_id=hong&user_address=korea"));
-    //httpPost.RequestPost(_T("user_name=È«±æµ¿&user_id=hong&user_address=korea"));
+    bool bResultPost = httpPost.RequestPost(_T("user_name=Ã¶¼ö&user_id=hong&user_address=korea"));
+	bool bResultReadFile = httpPost.InternetReadFile();
+
+    httpPost.RequestPost(_T("user_name=¿µÈñ&user_id=hong&user_address=korea"));
+    bResultPost = httpPost.RequestPost(_T("user_name=È«±æµ¿&user_id=hong&user_address=korea"));
     httpPost.Close();
 
-    return true;
+	if(!bResultPost)
+		httpPost.SetError(HTTP_ERR_REQUESTPOST);
+	if(!bResultReadFile)
+		httpPost.SetError(HTTP_ERR_READFILE);
+
+	return httpPost.GetError();
 }
 
+bool TestAsyncHttp()
+{
+	HANDLE hThread = NULL;
+	DWORD exitCode = (DWORD)-1; //DWORD max value
+	hThread = CreateThread(NULL, 0, RequestPost, NULL, 0, NULL);
+	
+	while(1)
+	{
+		Sleep(10);
+		if( !::GetExitCodeThread(hThread, &exitCode))
+        {
+            exitCode = HTTP_ERR_THREAD_EXIT;
+            break;
+        }
+        if ( exitCode != STILL_ACTIVE)
+            break;		
+	}
 
-/*
-[C++] Asynchronous WinInet client
-https://otland.net/threads/c-asynchronous-wininet-client.260001/
+	::CloseHandle(hThread);
 
-InternetSetStatusCallback ÀÚ¼¼È÷
-http://egloos.zum.com/dudtnrttl/v/993126
-*/
+	if(exitCode)
+		return false;
+	else
+		return true;
+}
