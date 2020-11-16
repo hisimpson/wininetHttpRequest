@@ -13,7 +13,7 @@
 
 #define Return_Error(msg)  {   printf(msg); return false; }
 
-HttpRequest::HttpRequest() : m_hSession(0), m_httpSession(0), m_hHttpFile (0)
+HttpRequest::HttpRequest() : m_hSession(0), m_httpSession(0), m_hHttpFile (0), m_port(0)
 {
 
 }
@@ -47,9 +47,6 @@ bool HttpRequest::RequestPost(TCHAR* data)
 
     if(!SetInternetOption())
         Return_Error("FAILED: error in SetInternetOption\n");
-
-    if(!SendPostHeader())
-        Return_Error("FAILED: error in SendPostHeader\n");
 
     if(!SendPostData())
         Return_Error("FAILED: error in SendPostData\n");
@@ -172,36 +169,16 @@ void HttpRequest::SetData(TCHAR* szData)
     strData = CW2A(CT2W(szPostData), CP_UTF8);
 }
 
-bool HttpRequest::SendPostHeader()
-{
-    std::string& strData = m_strData;
-    int postDataLength = (int)strData.length();
-
-    // post header
-    TCHAR szLen[MAX_PATH] = {0};
-    TCHAR szHeader[2048] = {0};
-
-    wsprintf(szLen, _T("%d"), postDataLength);
-    lstrcat(szHeader, _T("Accept: text/*\r\n"));
-    lstrcat(szHeader, _T("User-Agent: Mozilla/4.0 (compatible; MSIE 5.0;* Windows NT)\r\n"));
-    lstrcat(szHeader, _T("Content-type: application/x-www-form-urlencoded\r\n"));
-    lstrcat(szHeader, _T("Content-length: "));
-    lstrcat(szHeader, szLen);
-    lstrcat(szHeader, _T("\r\n\n"));
-
-    BOOL bRet = HttpAddRequestHeaders(m_hHttpFile , szHeader, -1L, HTTP_ADDREQ_FLAG_ADD);
-    return (bRet != FALSE);
-}
-
 bool HttpRequest::SendPostData()
 {
     std::string& strData = m_strData;
-
+    TCHAR* szHeader = _T("Content-Type: application/x-www-form-urlencoded");
     BOOL bRet = HttpSendRequest(m_hHttpFile ,
-                                        NULL,
-                                        0,
+                                        szHeader,
+                                        lstrlen(szHeader),
                                         (LPVOID)strData.c_str(),
                                         (DWORD)strData.length());
+
     return (bRet != FALSE);
 }
 
@@ -257,3 +234,38 @@ ASCII, UNICODE, UTF8 상호 변환, 한글깨짐
 https://m.blog.naver.com/chodadoo/220444225049
 */
 
+
+
+/*
+WinInet 비동기 통신
+검색 키워드 : wininet async example
+
+InternetOpen INTERNET_FLAG_ASYNC InternetSetStatusCallback                          
+https://zerry82.tistory.com/228
+
+
+WinInet API 설명
+https://phiru.tistory.com/50
+
+WinHttp 이어받기 (다운로드)
+https://yamoe.tistory.com/219
+
+변수 이름짖기
+http://speed.eik.bme.hu/help/html/Web_Programming_Unleashed/ch17.htm#InitializingaWinInetSession
+
+sample
+https://github.com/Codeh4ck/AsyncWinInet
+https://docs.microsoft.com/en-us/windows/win32/wininet/asynchronous-example-application
+
+설명
+Using WinInet HTTP functions in Full Asynchronous Mode
+https://www.codeproject.com/Articles/822/Using-WinInet-HTTP-functions-in-Full-Asynchronous
+https://docs.microsoft.com/en-us/windows/win32/wininet/asynchronous-operation
+
+*/
+
+
+/*
+http "Content-Length"를 telnet으로 설명
+https://b.pungjoo.com/entry/Transfer-Encoding-chunked-VS-Content-Length?category=221149
+*/

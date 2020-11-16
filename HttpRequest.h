@@ -22,7 +22,6 @@ private:
     bool OpenConnect();
     bool OpenRequest();
     bool SetInternetOption();
-    bool SendPostHeader();
     bool SendPostData();
     void SetData(TCHAR* szData);
 
